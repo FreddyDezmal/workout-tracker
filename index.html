@@ -629,18 +629,50 @@ async function loadExercises() {
 
 async function renderELView() {
   showLoading('el');
-  await loadExercises();
-  hideEl('el-loading');
-  const list = document.getElementById('el-list');
-  if (!exercises.length) { list.innerHTML = '<div class="muted sm">No exercises yet.</div>'; return; }
-  list.innerHTML = exercises.map(e => `
-    <div class="el-row">
-      <span class="tag ${e.type==='timer'?'tag-t':'tag-c'}">${e.type==='timer'?'&#9202;':'&#9650;'}</span>
-      <div style="flex:1"><div class="fw5 sm">${e.name}</div>${e.muscle_group?`<div class="xs muted">${e.muscle_group}${e.equipment?' · '+e.equipment:''}</div>`:''}</div>
-      <div class="xs muted mono">${e.type}</div>
-      <button class="btn btn-xs" onclick="openELForm('${e.id}')">Edit</button>
-      <button class="btn btn-xs btn-danger" onclick="softDeleteEx('${e.id}')">&#10005;</button>
-    </div>`).join('');
+
+  try {
+    console.log("Rendering EL view...");
+
+    await loadExercises();
+
+    const list = document.getElementById('el-list');
+
+    if (!list) {
+      throw new Error("el-list not found in DOM");
+    }
+
+    if (!exercises.length) {
+      list.innerHTML = '<div class="muted sm">No exercises yet.</div>';
+      return;
+    }
+
+    list.innerHTML = exercises.map(e => `
+      <div class="el-row">
+        <span class="tag ${e.type==='timer'?'tag-t':'tag-c'}">
+          ${e.type==='timer'?'&#9202;':'&#9650;'}
+        </span>
+        <div style="flex:1">
+          <div class="fw5 sm">${e.name}</div>
+          ${e.muscle_group ? `
+            <div class="xs muted">
+              ${e.muscle_group}${e.equipment ? ' · ' + e.equipment : ''}
+            </div>` : ''}
+        </div>
+        <div class="xs muted mono">${e.type}</div>
+        <button class="btn btn-xs" onclick="openELForm('${e.id}')">Edit</button>
+        <button class="btn btn-xs btn-danger" onclick="softDeleteEx('${e.id}')">×</button>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    console.error("Render EL failed:", err);
+
+    document.getElementById('el-list').innerHTML =
+      '<div class="muted sm">Failed to load exercises.</div>';
+
+  } finally {
+    hideEl('el-loading');
+  }
 }
 
 let elEditing = null;
