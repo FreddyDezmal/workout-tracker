@@ -695,6 +695,8 @@ async function saveEL() {
 
     elEditing = null; // 🔥 IMPORTANT FIX
 
+    setButtonLoading('el-save-btn', false);
+
     closeELForm();
 
     console.log("Rendering EL view...");
@@ -704,6 +706,7 @@ async function saveEL() {
   } catch (err) {
     console.error("SAVE EL FAILED:", err);
     showToast(err.message || "Something went wrong", true);
+    setButtonLoading('el-save-btn', false);
 
   } finally {
     setButtonLoading('el-save-btn', false);
