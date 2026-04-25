@@ -653,6 +653,7 @@ function closeELForm() { hideEl('el-form'); elEditing=null; }
 async function saveEL() {
   const name = document.getElementById('el-name').value.trim();
   if (!name) { showEl('el-err'); return; }
+
   const payload = {
     name,
     type:         document.getElementById('el-type').value,
@@ -660,18 +661,42 @@ async function saveEL() {
     equipment:    document.getElementById('el-equip').value.trim()||null,
     updated_at:   new Date().toISOString()
   };
+
   setButtonLoading('el-save-btn', true);
-  let error;
-  if (elEditing) {
-    ({ error } = await sb.from('exercises').update(payload).eq('id', elEditing));
-  } else {
-    payload.created_by = currentUser.id;
-    ({ error } = await sb.from('exercises').insert(payload));
+
+  try {
+    let error;
+
+    if (elEditing) {
+      ({ error } = await sb.from('exercises')
+        .update(payload)
+        .eq('id', elEditing)
+        .select());
+    } else {
+      payload.created_by = currentUser.id;
+
+      ({ error } = await sb.from('exercises')
+        .insert(payload)
+        .select());
+    }
+
+    if (error) throw error;
+
+    showToast(elEditing ? 'Exercise updated' : 'Exercise added');
+
+    closeELForm();
+
+    console.log("Rendering EL view...");
+    await renderELView();
+    console.log("Render complete");
+
+  } catch (err) {
+    console.error("SAVE EL FAILED:", err);
+    showToast(err.message || "Something went wrong", true);
+
+  } finally {
+    setButtonLoading('el-save-btn', false);
   }
-  setButtonLoading('el-save-btn', false);
-  if (error) { showToast(error.message, true); return; }
-  showToast(elEditing ? 'Exercise updated' : 'Exercise added');
-  closeELForm(); await renderELView();
 }
 
 async function softDeleteEx(id) {
