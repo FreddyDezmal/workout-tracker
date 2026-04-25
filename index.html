@@ -693,6 +693,8 @@ async function saveEL() {
 
     showToast(elEditing ? 'Exercise updated' : 'Exercise added');
 
+    elEditing = null; // 🔥 IMPORTANT FIX
+
     closeELForm();
 
     console.log("Rendering EL view...");
