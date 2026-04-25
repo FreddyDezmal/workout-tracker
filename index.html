@@ -621,34 +621,26 @@ async function loadExercises() {
 
   if (error) {
     console.error('Exercise load error:', error);
-    throw error; // 🔥 critical: do NOT silently fail
+    throw error; 
   }
 
   exercises = data || [];
 }
 
-function renderELView() {
+async function renderELView() {
+  showLoading('el');
+  await loadExercises();
+  hideEl('el-loading');
   const list = document.getElementById('el-list');
-
-  if (!exercises?.length) {
-    list.innerHTML = '<div class="muted sm">No exercises yet.</div>';
-    return;
-  }
-
-  list.innerHTML = exercises.map(e => `...`).join('');
-}
-
-async function refreshExercises() {
-  const { data, error } = await sb
-    .from('exercises')
-    .select('*')
-    .is('deleted_at', null)
-    .order('name');
-
-  if (error) throw error;
-
-  exercises = data || [];
-  renderELView();
+  if (!exercises.length) { list.innerHTML = '<div class="muted sm">No exercises yet.</div>'; return; }
+  list.innerHTML = exercises.map(e => `
+    <div class="el-row">
+      <span class="tag ${e.type==='timer'?'tag-t':'tag-c'}">${e.type==='timer'?'&#9202;':'&#9650;'}</span>
+      <div style="flex:1"><div class="fw5 sm">${e.name}</div>${e.muscle_group?`<div class="xs muted">${e.muscle_group}${e.equipment?' · '+e.equipment:''}</div>`:''}</div>
+      <div class="xs muted mono">${e.type}</div>
+      <button class="btn btn-xs" onclick="openELForm('${e.id}')">Edit</button>
+      <button class="btn btn-xs btn-danger" onclick="softDeleteEx('${e.id}')">&#10005;</button>
+    </div>`).join('');
 }
   
 let elEditing = null;
@@ -701,14 +693,14 @@ async function saveEL() {
 
     showToast(elEditing ? 'Exercise updated' : 'Exercise added');
 
-    elEditing = null; // 🔥 IMPORTANT FIX
+    elEditing = null; // 
 
     setButtonLoading('el-save-btn', false);
 
     closeELForm();
 
     console.log("Rendering EL view...");
-    await refreshExercises();
+    await renderELView();
     console.log("Render complete");
 
   } catch (err) {
