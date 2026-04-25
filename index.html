@@ -613,8 +613,17 @@ function showView(n) {
 // EXERCISE LIBRARY
 // ============================================================
 async function loadExercises() {
-  const { data, error } = await sb.from('exercises').select('*').is('deleted_at', null).order('name');
-  if (error) { console.error('Exercise load error:', error); return; }
+  const { data, error } = await sb
+    .from('exercises')
+    .select('*')
+    .is('deleted_at', null)
+    .order('name');
+
+  if (error) {
+    console.error('Exercise load error:', error);
+    throw error; // 🔥 critical: do NOT silently fail
+  }
+
   exercises = data || [];
 }
 
