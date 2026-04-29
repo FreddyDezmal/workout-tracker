@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REP — Confirming Account…</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0f0e0d; --ink-3: #7a7672;
+    --accent: #c8410a;
+    --green: #2a6b3c; --green-bg: #f0f9f3;
+    --red: #a32020; --red-bg: #fdf0f0; --red-bd: rgba(163,32,32,.2);
+    --border: rgba(15,14,13,.12);
+    --rxl: 12px;
+    --fd: 'Syne', sans-serif; --fb: 'DM Sans', sans-serif;
+  }
+  body {
+    font-family: var(--fb);
+    background: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--ink);
+  }
+  .card {
+    background: #fff;
+    border-radius: var(--rxl);
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .logo { font-family: var(--fd); font-size: 28px; font-weight: 800; margin-bottom: 24px; }
+  .logo em { color: var(--accent); font-style: normal; }
+
+  /* States */
+  .state { display: none; }
+  .state.active { display: block; }
+
+  /* Loading */
+  #state-loading .spinner-wrap {
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid rgba(200,65,10,.15);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #state-loading p { font-size: 15px; color: var(--ink-3); }
+
+  /* Success */
+  #state-success .icon { font-size: 40px; margin-bottom: 12px; }
+  #state-success h2 {
+    font-family: var(--fd); font-size: 20px; font-weight: 700;
+    margin-bottom: 8px; color: var(--green);
+  }
+  #state-success p { font-size: 14px; color: var(--ink-3); margin-bottom: 20px; }
+  #state-success .redirect-note {
+    font-size: 12px; color: var(--ink-3); margin-top: 12px;
+  }
+
+  /* Error */
+  #state-error {
+    background: var(--red-bg);
+    border: 1px solid var(--red-bd);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  #state-error .icon { font-size: 32px; margin-bottom: 10px; }
+  #state-error h2 {
+    font-family: var(--fd); font-size: 17px; font-weight: 700;
+    margin-bottom: 8px; color: var(--red);
+  }
+  #state-error p { font-size: 13px; color: var(--red); opacity: .8; margin-bottom: 16px; }
+  #state-error .err-detail {
+    font-size: 11px; font-family: monospace;
+    background: rgba(163,32,32,.07);
+    padding: 8px 10px; border-radius: 4px;
+    color: var(--red); margin-bottom: 16px;
+    word-break: break-all;
+  }
+
+  .btn {
+    display: inline-block; padding: 10px 22px;
+    background: var(--ink); color: #fff;
+    border: none; border-radius: 4px;
+    font-family: var(--fb); font-size: 13px; font-weight: 500;
+    cursor: pointer; text-decoration: none;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-accent { background: var(--accent); }
+
+  .progress-bar-wrap {
+    height: 3px; background: rgba(42,107,60,.15);
+    border-radius: 2px; overflow: hidden; margin-top: 16px;
+  }
+  .progress-bar {
+    height: 100%; background: var(--green);
+    border-radius: 2px;
+    animation: progress 2.5s linear forwards;
+  }
+  @keyframes progress { from { width: 0; } to { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">REP<em>.</em></div>
+
+  <!-- State: loading -->
+  <div id="state-loading" class="state active">
+    <div class="spinner-wrap"><div class="spinner"></div></div>
+    <p id="loading-msg">Confirming your account…</p>
+  </div>
+
+  <!-- State: success -->
+  <div id="state-success" class="state">
+    <div class="icon">&#9989;</div>
+    <h2 id="success-title">Email confirmed!</h2>
+    <p id="success-msg">Your account is ready. Taking you to the app now.</p>
+    <div class="progress-bar-wrap"><div class="progress-bar"></div></div>
+    <div class="redirect-note">Redirecting automatically…</div>
+  </div>
+
+  <!-- State: error -->
+  <div id="state-error" class="state">
+    <div class="icon">&#10060;</div>
+    <h2>Confirmation failed</h2>
+    <p id="error-msg">Something went wrong processing your link.</p>
+    <div class="err-detail" id="error-detail" style="display:none"></div>
+    <a href="/index.html" class="btn btn-accent">Back to App</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── CONFIG ───────────────────────────────────────────────────
+const SUPABASE_URL  = 'https://iphktskgsprpypuokqkk.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwaGt0c2tnc3BycHlwdW9rcWtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTU3NDAsImV4cCI6MjA5MjQzMTc0MH0.hCfIo6vnVL5XEv_47gRNL7UraX9FKswgpEnnuPkn4Vg';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── WHY THIS WORKS ───────────────────────────────────────────
+// When a user clicks a Supabase confirmation email, the link format is:
+//   https://yoursite.com/auth/callback.html#access_token=xxx&type=signup
+//
+// The Supabase SDK automatically parses this hash on initialisation
+// and emits SIGNED_IN via onAuthStateChange. We do NOT manually
+// parse the hash — that's the SDK's job. We just listen and react.
+//
+// For password recovery, the type is 'recovery' and the SDK emits
+// PASSWORD_RECOVERY instead. We redirect to reset-password.html
+// because the user needs to set a new password.
+
+function showState(id) {
+  document.querySelectorAll('.state').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showError(msg, detail = null) {
+  document.getElementById('error-msg').textContent = msg;
+  if (detail) {
+    document.getElementById('error-detail').textContent = detail;
+    document.getElementById('error-detail').style.display = 'block';
+  }
+  showState('state-error');
+}
+
+function showSuccess(title, msg, redirectUrl, delay = 2500) {
+  document.getElementById('success-title').textContent  = title;
+  document.getElementById('success-msg').textContent    = msg;
+  showState('state-success');
+  setTimeout(() => { window.location.href = redirectUrl; }, delay);
+}
+
+// ── MAIN LOGIC ───────────────────────────────────────────────
+// The SDK fires onAuthStateChange synchronously when it parses
+// a valid token from the URL hash. We set a timeout as a fallback
+// in case the hash is missing or invalid.
+
+let handled = false;
+
+sb.auth.onAuthStateChange((event, session) => {
+  if (handled) return;
+
+  if (event === 'SIGNED_IN' && session) {
+    handled = true;
+
+    // Check what type of link this was
+    const hash   = window.location.hash;
+    const params = new URLSearchParams(hash.replace('#', '?'));
+    const type   = params.get('type');
+
+    if (type === 'recovery') {
+      // Password reset — the user needs to set a new password.
+      // Redirect to the reset page, keeping the session active.
+      // The reset-password.html page will handle updateUser().
+      document.getElementById('loading-msg').textContent = 'Redirecting to password reset…';
+      window.location.href = '/reset-password.html' + window.location.hash;
+      return;
+    }
+
+    // type === 'signup' or 'magiclink' — email confirmation success
+    showSuccess(
+      'Email confirmed!',
+      'Your account is ready. Taking you to the app now.',
+      '/index.html'
+    );
+    return;
+  }
+
+  if (event === 'SIGNED_OUT') {
+    // User was signed out on this page (shouldn't normally happen)
+    if (!handled) {
+      handled = true;
+      showError(
+        'Session expired.',
+        'Your confirmation link may have already been used. Please sign in.'
+      );
+    }
+  }
+});
+
+// Fallback timeout — if SDK doesn't fire an event within 4 seconds,
+// the hash was missing, malformed, or the token expired.
+setTimeout(() => {
+  if (handled) return;
+  handled = true;
+
+  const hash   = window.location.hash;
+  const params = new URLSearchParams(hash.replace('#', '?'));
+  const token  = params.get('access_token');
+  const error  = params.get('error_description');
+
+  if (error) {
+    // Supabase put an error in the URL itself (e.g. expired link)
+    showError(
+      'This confirmation link has expired.',
+      decodeURIComponent(error)
+    );
+  } else if (!token) {
+    showError(
+      'No confirmation token found.',
+      'Make sure you used the full link from your email without any modifications.'
+    );
+  } else {
+    // Has a token but SDK didn't fire — likely an expired/used token
+    showError(
+      'This link has already been used or has expired.',
+      'Confirmation links can only be used once. Please sign up again or request a new link.'
+    );
+  }
+}, 4000);
+</script>
+</body>
+</html>
