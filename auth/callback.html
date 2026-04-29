@@ -204,7 +204,7 @@ sb.auth.onAuthStateChange((event, session) => {
       // Redirect to the reset page, keeping the session active.
       // The reset-password.html page will handle updateUser().
       document.getElementById('loading-msg').textContent = 'Redirecting to password reset…';
-      window.location.href = '/reset-password.html' + window.location.hash;
+      window.location.href = '/workout-tracker/reset-password.html' + window.location.hash;
       return;
     }
 
@@ -212,7 +212,7 @@ sb.auth.onAuthStateChange((event, session) => {
     showSuccess(
       'Email confirmed!',
       'Your account is ready. Taking you to the app now.',
-      '/index.html'
+      '/workout-tracker/index.html'
     );
     return;
   }
