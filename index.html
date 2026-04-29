@@ -604,7 +604,7 @@ async function sendPasswordReset() {
     return;
   }
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://freddydezmal.github.io/workout-tracker/PasswordReset.html'
+    redirectTo: window.location.origin + '/workout-tracker/PasswordReset.html'
   });
   console.log('Redirect URL:', redirectTo);
   const errEl = document.getElementById('si-err');
