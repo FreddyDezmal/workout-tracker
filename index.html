@@ -662,57 +662,66 @@ function closeELForm() { hideEl('el-form'); elEditing=null; }
 async function saveEL() {
   const name = document.getElementById('el-name').value.trim();
   if (!name) { showEl('el-err'); return; }
-
+ 
   const payload = {
     name,
     type:         document.getElementById('el-type').value,
-    muscle_group: document.getElementById('el-muscle').value.trim()||null,
-    equipment:    document.getElementById('el-equip').value.trim()||null,
-    updated_at:   new Date().toISOString()
+    muscle_group: document.getElementById('el-muscle').value.trim() || null,
+    equipment:    document.getElementById('el-equip').value.trim()  || null
+    // Do NOT include updated_at here — the set_updated_at DB trigger
+    // handles this automatically. Sending it manually can cause the
+    // RLS WITH CHECK to fail in some Postgres versions because the
+    // trigger fires before the check and mutates the row.
   };
-
+ 
+  // Capture and clear editing state immediately to prevent double-submit
+  const wasEditing = elEditing;
+  elEditing = null;
+ 
   setButtonLoading('el-save-btn', true);
-
+ 
   try {
     let error;
-
-    if (elEditing) {
-      ({ error } = await sb.from('exercises')
+ 
+    if (wasEditing) {
+      ({ error } = await sb
+        .from('exercises')
         .update(payload)
-        .eq('id', elEditing)
-        .select());
+        .eq('id', wasEditing));
     } else {
       payload.created_by = currentUser.id;
-
-      ({ error } = await sb.from('exercises')
-        .insert(payload)
-        .select());
+      ({ error } = await sb
+        .from('exercises')
+        .insert(payload));
     }
-
+ 
     if (error) throw error;
-
-    showToast(elEditing ? 'Exercise updated' : 'Exercise added');
-
-    elEditing = null; // 
-
-    setButtonLoading('el-save-btn', false);
-
+ 
+    // Save succeeded — now update UI
     closeELForm();
-
-    console.log("Rendering EL view...");
+    showToast(wasEditing ? 'Exercise updated' : 'Exercise added');
+ 
+    // Re-fetch from DB to ensure local cache matches server state.
+    // This is the single source of truth pattern:
+    //   mutation → re-fetch → re-render
+    // Never mutate the local array directly.
     await renderELView();
-    console.log("Render complete");
-
+ 
   } catch (err) {
-    console.error("SAVE EL FAILED:", err);
-    showToast(err.message || "Something went wrong", true);
-    setButtonLoading('el-save-btn', false);
-
+    // Restore editing state so the user can retry
+    elEditing = wasEditing;
+    console.error('saveEL failed:', err);
+ 
+    // Show the actual Supabase error message — it's usually descriptive
+    // (e.g. "new row violates row-level security policy" tells you RLS failed)
+    showToast(err.message || 'Save failed. Please try again.', true);
+ 
   } finally {
-    setButtonLoading('el-save-btn', false);
+    // Always re-enable the button, whether success or failure.
+    // This is the ONLY place setButtonLoading(false) should be called.
+    setButtonLoading('el-save-btn', false, wasEditing ? 'Save' : 'Save');
   }
 }
-
 async function softDeleteEx(id) {
   // Check if in use — DB will also enforce via trigger, but gives nicer UX message
   const { data: slots } = await sb.from('workout_slots').select('id').eq('exercise_id', id).limit(1);
